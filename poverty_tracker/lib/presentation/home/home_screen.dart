@@ -50,6 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
@@ -448,7 +449,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const SizedBox(height: 16),
 
                         // ── Budget Alert Banner ──
-                        _buildBudgetAlerts(ref, formatter),
+                        _buildBudgetAlerts(ref, formatter, thisMonth),
                         const SizedBox(height: 24),
 
                         // Quick Actions
@@ -1173,18 +1174,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   /// Budget Alert Banner — shows when any budget is near or over limit
-  Widget _buildBudgetAlerts(WidgetRef ref, NumberFormat formatter) {
+    Widget _buildBudgetAlerts(WidgetRef ref, NumberFormat formatter, List<TransactionModel> thisMonth) {
     final budgetsAsync = ref.watch(budgetsProvider);
-    final spendingAsync = ref.watch(spendingByCategoryProvider);
 
     return budgetsAsync.when(
-      data: (budgets) => spendingAsync.when(
-        data: (spending) {
-          // Find budgets that are >= 80% used
-          final alerts = <Map<String, dynamic>>[];
-          for (final budget in budgets) {
-            final spent = spending[budget.category] ?? 0;
-            final progress = budget.limitAmount > 0
+      data: (budgets) {
+        // Calculate spending for this month locally
+        final spending = <String, double>{};
+        for (final t in thisMonth.where((t) => t.type == 'expense')) {
+          spending[t.category] = (spending[t.category] ?? 0) + t.amount;
+        }
+        // Find budgets that are >= 80% used
+        final alerts = <Map<String, dynamic>>[];
+        for (final budget in budgets) {
+          final spent = spending[budget.category] ?? 0;
+          final progress = budget.limitAmount > 0
                 ? spent / budget.limitAmount
                 : 0.0;
             if (progress >= 0.8) {
@@ -1291,9 +1295,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
         loading: () => const SizedBox.shrink(),
         error: (_, __) => const SizedBox.shrink(),
-      ),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
     );
   }
 

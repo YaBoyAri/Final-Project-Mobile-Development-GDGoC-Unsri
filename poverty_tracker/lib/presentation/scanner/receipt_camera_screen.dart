@@ -191,6 +191,7 @@ class _ReceiptCameraScreenState extends State<ReceiptCameraScreen>
   void _showScanResult(ReceiptData result, File imageFile) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       isDismissible: true,

@@ -47,13 +47,13 @@ Aplikasi ini sepenuhnya menggunakan Supabase sebagai backend (Authentication + P
 
 ## Fitur
 
-- **Autentikasi pengguna** — Registrasi dan login menggunakan email & password lewat Supabase Authentication. Sesi login tersimpan otomatis (auto-login saat membuka kembali aplikasi).
+- **Autentikasi pengguna** — Registrasi dan login menggunakan email & password lewat Supabase Authentication. Sesi login tersimpan otomatis (auto-login saat membuka kembali aplikasi). Didukung oleh **Biometric Login** (Sidik jari / Face ID) melalui `local_auth` untuk perlindungan tambahan.
 - **Dashboard utama** — Menampilkan saldo bulanan, ringkasan pemasukan & pengeluaran, dan daftar transaksi terakhir. Dilengkapi filter bulan dan pull-to-refresh.
-- **Pencatatan transaksi (CRUD)** — Tambah, edit, dan hapus transaksi. Setiap transaksi memiliki tipe (income/expense), kategori dengan ikon & emoji, nominal, tanggal, dan catatan opsional. Hapus bisa dilakukan dengan swipe-to-delete atau lewat halaman edit.
-- **Budget bulanan** — Membuat limit pengeluaran per kategori per bulan. Progress bar menunjukkan seberapa banyak yang sudah terpakai. Indikator peringatan muncul jika pengeluaran melebihi budget.
-- **Manajemen tagihan** — Menambahkan tagihan dengan nama, nominal, dan tanggal jatuh tempo. Toggle status bayar/belum bayar. Peringatan visual untuk tagihan yang sudah lewat jatuh tempo.
+- **Pencatatan transaksi & Smart Scanner** — Tambah, edit, dan hapus transaksi. Termasuk fitur **AI Receipt Scanner (Google ML Kit)** yang memindai foto struk on-device untuk mengekstrak nominal belanja secara otomatis tanpa internet.
+- **Budget bulanan & Notifikasi** — Membuat limit pengeluaran per kategori per bulan. Progress bar menampilkan batas terpakai. Notifikasi lokal otomatis (Local Notification) akan muncul jika penggunaan mencapai peringatan 80% atau melebihi limit.
+- **Manajemen & Pengingat Tagihan** — Menambahkan tagihan dengan nama, nominal, dan tanggal jatuh tempo. Pengguna akan menerima push notification (lokal) sebagai peringatan saat hari H jatuh tempo atau lewat batas bayar.
 - **Laporan keuangan interaktif** — Grafik bar chart perbandingan pemasukan vs pengeluaran, pie chart pengeluaran per kategori, grafik tren mingguan (line chart), dan detail transaksi per filter. Bisa difilter berdasarkan bulan.
-- **Pengaturan akun** — Ubah username dan password langsung dari aplikasi. Logout dengan konfirmasi dan pembersihan sesi.
+- **Pengaturan akun** — Ubah profil, kata sandi, dan atur preferensi login biometrik (aktif/nonaktif) langsung dari aplikasi. Logout dengan pembersihan sesi secara aman.
 - **UI dark mode premium** — Tema gelap dengan glassmorphism, gradient, micro-animation (flutter_animate), floating bottom navigation bar, shimmer loading, dan tipografi Poppins.
 
 ---
@@ -66,6 +66,8 @@ Aplikasi ini sepenuhnya menggunakan Supabase sebagai backend (Authentication + P
 | State Management | Riverpod 2.x (`flutter_riverpod`) |
 | Navigasi | GoRouter 13.x (`go_router`) |
 | Backend | Supabase (Authentication + PostgreSQL) |
+| AI / ML Scanner | Google ML Kit (Text Recognition OCR on-device) |
+| Notifikasi & Keamanan | Local Notifications, Local Auth (Biometric), Secure Storage |
 | Chart / Grafik | fl_chart |
 | Animasi | flutter_animate |
 | Font | Google Fonts (Poppins) |
@@ -112,11 +114,17 @@ lib/
 │   │   └── bill_model.dart                # Model Tagihan
 │   ├── services/
 │   │   ├── auth_service.dart              # Service autentikasi (signUp, signIn, signOut, dll)
+│   │   ├── biometric_service.dart         # Service untuk autentikasi sidik jari/face ID
+│   │   ├── notification_service.dart      # Service pengingat tagihan & budget lewat notif lokal
+│   │   ├── receipt_scanner_service.dart   # Service OCR menggunakan Google ML Kit untuk struk
 │   │   ├── transaction_service.dart       # CRUD transaksi + ringkasan (getSummary)
 │   │   ├── budget_service.dart            # CRUD budget + spending per kategori
 │   │   └── bill_service.dart              # CRUD tagihan + toggle status bayar
 │   └── repositories/
 │       ├── auth_provider.dart             # Riverpod providers untuk auth
+│       ├── biometric_provider.dart        # Riverpod providers untuk biometrik
+│       ├── notification_provider.dart     # Riverpod providers untuk notifikasi
+│       ├── receipt_scanner_provider.dart  # Riverpod providers untuk state scanner
 │       ├── transaction_provider.dart      # Riverpod providers untuk transaksi & summary
 │       ├── budget_provider.dart           # Riverpod providers untuk budget & spending
 │       └── bill_provider.dart             # Riverpod providers untuk tagihan
@@ -127,8 +135,10 @@ lib/
     │   └── register_screen.dart           # Halaman registrasi
     ├── home/
     │   └── home_screen.dart               # Dashboard utama (saldo, transaksi terakhir)
+    ├── scanner/
+    │   └── receipt_camera_screen.dart     # UI kamera & pemindaian AI untuk struk otomatis
     ├── transaction/
-    │   ├── add_transaction_screen.dart    # Form tambah transaksi
+    │   ├── add_transaction_screen.dart    # Form tambah transaksi manual
     │   └── edit_transaction_screen.dart   # Form edit transaksi
     ├── budget/
     │   └── budget_screen.dart             # Daftar budget & progress pengeluaran
@@ -137,7 +147,7 @@ lib/
     ├── bill/
     │   └── bill_screen.dart               # Daftar tagihan
     └── settings/
-        └── settings_screen.dart           # Pengaturan akun (username, password, logout)
+        └── settings_screen.dart           # Pengaturan profil, kata sandi, biometrik & logout
 ```
 
 Pemisahan layer `data` dan `presentation` membuat logic bisnis (service/provider) tidak bercampur dengan kode UI.
